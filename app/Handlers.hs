@@ -1,3 +1,5 @@
+{-# LANGUAGE ScopedTypeVariables #-}
+
 module Handlers (addPost, commentHandler, commentsHandlerById, deletePost, usersHandler, usersByIdHandler, healthHandler, todoHandler, todoHandlerById, postsHandler, postsHandlerById, updatePost) where
 
 import Config (AppConfig (httpManager, todosBaseUrl), AppM)
@@ -5,7 +7,7 @@ import Control.Monad.IO.Class (MonadIO (liftIO))
 import Control.Monad.RWS (asks)
 import qualified Data.ByteString.Lazy.Char8 as LBS
 import Data.Text (Text, pack)
-import Servant (Handler, errBody, throwError)
+import Servant (Handler, NoContent (NoContent), errBody, throwError)
 import Servant.Server (err500)
 import Todo.Comments (Comment)
 import Todo.Posts (Posts)
@@ -115,11 +117,11 @@ updatePost postid post = do
     Left _ -> throwError $ err500 {errBody = LBS.pack "failed to update the post"}
     Right v -> pure v
 
-deletePost :: Int -> Posts -> AppM Posts
-deletePost postid post = do
+deletePost :: Int -> AppM NoContent
+deletePost postid = do
   manager <- asks httpManager
   baseUrl <- asks todosBaseUrl
-  response <- liftIO $ delete manager baseUrl deleteablePosts postid post
+  response :: Either String () <- liftIO $ delete manager baseUrl deleteablePosts postid
   case response of
     Left _ -> throwError $ err500 {errBody = LBS.pack "failed to delete the post"}
-    Right v -> pure v
+    Right _ -> pure NoContent

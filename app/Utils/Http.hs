@@ -79,13 +79,12 @@ patcher manager url body = do
   response <- httpLbs request manager
   pure $ eitherDecode $ responseBody response
 
-deleter :: (FromJSON a, ToJSON b) => Manager -> String -> b -> IO (Either String a)
-deleter manager url body = do
+deleter :: (FromJSON a) => Manager -> String -> IO (Either String a)
+deleter manager url = do
   initialRequest <- parseRequest url
   let request =
         initialRequest
           { method = "DELETE", -- uppercase!
-            requestBody = RequestBodyLBS $ encode body,
             requestHeaders = [("Content-Type", "application/json")]
           }
   response <- httpLbs request manager
@@ -103,5 +102,5 @@ create manager baseUrl resource = poster manager (buildUrl baseUrl resource Noth
 patch :: (FromJSON a, ToJSON b) => Manager -> String -> Patchable -> Int -> b -> IO (Either String a)
 patch manager baseUrl resource rid = patcher manager (buildUrl baseUrl resource (Just rid))
 
-delete :: (FromJSON a, ToJSON b) => Manager -> String -> Deleteable -> Int -> b -> IO (Either String a)
+delete :: (FromJSON a) => Manager -> String -> Deleteable -> Int -> IO (Either String a)
 delete manager baseUrl resource rid = deleter manager (buildUrl baseUrl resource (Just rid))

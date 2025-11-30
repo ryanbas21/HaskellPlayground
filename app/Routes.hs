@@ -7,6 +7,7 @@ import Servant
   ( Delete,
     Get,
     JSON,
+    NoContent,
     Patch,
     Proxy (..),
     type (:<|>),
@@ -52,8 +53,7 @@ type PostsRoute =
       :> Patch '[JSON] Posts
     :<|> "posts"
       :> Capture "x" Int
-      :> ReqBody '[JSON] Posts
-      :> Delete '[JSON] Posts
+      :> Delete '[JSON] NoContent
 
 type API = UserRoute :<|> TodoRoute :<|> CommentsRoute :<|> PostsRoute
 
