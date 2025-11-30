@@ -1,6 +1,8 @@
 module Handlers (addPost, commentHandler, commentsHandlerById, deletePost, usersHandler, usersByIdHandler, healthHandler, todoHandler, todoHandlerById, postsHandler, postsHandlerById, updatePost) where
 
+import Config (AppConfig (httpManager, todosBaseUrl), AppM)
 import Control.Monad.IO.Class (MonadIO (liftIO))
+import Control.Monad.RWS (asks)
 import qualified Data.ByteString.Lazy.Char8 as LBS
 import Data.Text (Text, pack)
 import Servant (Handler, errBody, throwError)
@@ -10,17 +12,30 @@ import Todo.Posts (Posts)
 import Todo.Todos (Todo)
 import Todo.Users (User)
 import Utils.Http
+  ( Resource (Comments, Posts, Todos, Users),
+    create,
+    delete,
+    deleteablePosts,
+    fetchAll,
+    fetchById,
+    patch,
+    patchablePosts,
+  )
 
-usersHandler :: Handler [User]
+usersHandler :: AppM [User]
 usersHandler = do
-  result <- liftIO $ fetchAll Users
+  manager <- asks httpManager
+  baseUrl <- asks todosBaseUrl
+  result <- liftIO $ fetchAll manager baseUrl Users
   case result of
     Left _ -> throwError $ err500 {errBody = LBS.pack "Failed to fetch users"}
     Right users -> pure users
 
-usersByIdHandler :: Int -> Handler User
+usersByIdHandler :: Int -> AppM User
 usersByIdHandler userId = do
-  result <- liftIO $ fetchById Users userId
+  manager <- asks httpManager
+  baseUrl <- asks todosBaseUrl
+  result <- liftIO $ fetchById manager baseUrl Users userId
   case result of
     Left _ -> throwError $ err500 {errBody = LBS.pack $ "Failed to fetch user with id " ++ show userId}
     Right v -> pure v
@@ -28,65 +43,83 @@ usersByIdHandler userId = do
 healthHandler :: Handler Text
 healthHandler = return $ pack "Healthy!"
 
-todoHandler :: Handler [Todo]
+todoHandler :: AppM [Todo]
 todoHandler = do
-  result <- liftIO $ fetchAll Todos
+  manager <- asks httpManager
+  baseUrl <- asks todosBaseUrl
+  result <- liftIO $ fetchAll manager baseUrl Todos
   case result of
     Left _ -> throwError $ err500 {errBody = LBS.pack "Failed to fetch todos"}
     Right v -> pure v
 
-todoHandlerById :: Int -> Handler Todo
+todoHandlerById :: Int -> AppM Todo
 todoHandlerById todoId = do
-  result <- liftIO $ fetchById Todos todoId
+  manager <- asks httpManager
+  baseUrl <- asks todosBaseUrl
+  result <- liftIO $ fetchById manager baseUrl Todos todoId
   case result of
     Left _ -> throwError $ err500 {errBody = LBS.pack $ "Failed to fetch todo with id " ++ show todoId}
     Right v -> pure v
 
-commentHandler :: Handler [Comment]
+commentHandler :: AppM [Comment]
 commentHandler = do
-  result <- (liftIO . fetchAll) Comments
+  manager <- asks httpManager
+  baseUrl <- asks todosBaseUrl
+  result <- liftIO $ fetchAll manager baseUrl Comments
   case result of
     Left _ -> throwError $ err500 {errBody = LBS.pack "Failed to fetch comments"}
     Right v -> pure v
 
-commentsHandlerById :: Int -> Handler Comment
+commentsHandlerById :: Int -> AppM Comment
 commentsHandlerById commentid = do
-  result <- (liftIO . fetchById Comments) commentid
+  manager <- asks httpManager
+  baseUrl <- asks todosBaseUrl
+  result <- liftIO $ fetchById manager baseUrl Comments commentid
   case result of
     Left _ -> throwError $ err500 {errBody = LBS.pack $ "Failed to fetch comments with id " ++ show commentid}
     Right v -> pure v
 
-postsHandler :: Handler [Posts]
+postsHandler :: AppM [Posts]
 postsHandler = do
-  result <- (liftIO . fetchAll) Posts
+  manager <- asks httpManager
+  baseUrl <- asks todosBaseUrl
+  result <- liftIO $ fetchAll manager baseUrl Posts
   case result of
-    Left _ -> throwError $ err500 {errBody = LBS.pack "Failed to fetch comments"}
+    Left _ -> throwError $ err500 {errBody = LBS.pack "Failed to fetch posts"}
     Right v -> pure v
 
-postsHandlerById :: Int -> Handler Posts
+postsHandlerById :: Int -> AppM Posts
 postsHandlerById postId = do
-  result <- (liftIO . fetchById Posts) postId
+  manager <- asks httpManager
+  baseUrl <- asks todosBaseUrl
+  result <- liftIO $ fetchById manager baseUrl Posts postId
   case result of
     Left _ -> throwError $ err500 {errBody = LBS.pack $ "Failed to fetch post with id " ++ show postId}
     Right v -> pure v
 
-addPost :: Posts -> Handler Posts
+addPost :: Posts -> AppM Posts
 addPost post = do
-  response <- (liftIO . create Posts) post
+  manager <- asks httpManager
+  baseUrl <- asks todosBaseUrl
+  response <- liftIO $ create manager baseUrl Posts post
   case response of
     Left _ -> throwError $ err500 {errBody = LBS.pack "failed to add post"}
     Right v -> pure v
 
-updatePost :: Int -> Posts -> Handler Posts
+updatePost :: Int -> Posts -> AppM Posts
 updatePost postid post = do
-  response <- liftIO $ patch patchablePosts postid post
+  manager <- asks httpManager
+  baseUrl <- asks todosBaseUrl
+  response <- liftIO $ patch manager baseUrl patchablePosts postid post
   case response of
     Left _ -> throwError $ err500 {errBody = LBS.pack "failed to update the post"}
     Right v -> pure v
 
-deletePost :: Int -> Posts -> Handler Posts
+deletePost :: Int -> Posts -> AppM Posts
 deletePost postid post = do
-  response <- liftIO $ delete deleteablePosts postid post
+  manager <- asks httpManager
+  baseUrl <- asks todosBaseUrl
+  response <- liftIO $ delete manager baseUrl deleteablePosts postid post
   case response of
-    Left _ -> throwError $ err500 {errBody = LBS.pack "failed to update the post"}
+    Left _ -> throwError $ err500 {errBody = LBS.pack "failed to delete the post"}
     Right v -> pure v

@@ -6,6 +6,7 @@ module Utils.Http
     create,
     delete,
     deleteablePosts,
+    HasPath (..),
     patch,
     patchablePosts,
     Resource (..),
@@ -44,23 +45,18 @@ instance HasPath Deleteable where
 deleteablePosts :: Deleteable
 deleteablePosts = Deleteable Posts
 
-baseUrl :: String
-baseUrl = "https://jsonplaceholder.typicode.com"
+buildUrl :: (HasPath a) => String -> a -> Maybe Int -> String
+buildUrl baseUrl resource Nothing = baseUrl ++ "/" ++ toPath resource
+buildUrl baseUrl resource (Just rid) = baseUrl ++ "/" ++ toPath resource ++ "/" ++ show rid
 
-buildUrl :: (HasPath a) => a -> Maybe Int -> String
-buildUrl resource Nothing = baseUrl ++ "/" ++ toPath resource
-buildUrl resource (Just rid) = baseUrl ++ "/" ++ toPath resource ++ "/" ++ show rid
-
-fetcher :: (FromJSON a) => String -> IO (Either String a)
-fetcher url = do
-  manager <- newManager tlsManagerSettings
+fetcher :: (FromJSON a) => Manager -> String -> IO (Either String a)
+fetcher manager url = do
   request <- parseRequest url
   response <- httpLbs request manager
   pure $ eitherDecode $ responseBody response
 
-poster :: (FromJSON a, ToJSON b) => String -> b -> IO (Either String a)
-poster url body = do
-  manager <- newManager tlsManagerSettings
+poster :: (FromJSON a, ToJSON b) => Manager -> String -> b -> IO (Either String a)
+poster manager url body = do
   initialRequest <- parseRequest url
   let request =
         initialRequest
@@ -71,9 +67,8 @@ poster url body = do
   response <- httpLbs request manager
   pure $ eitherDecode $ responseBody response
 
-patcher :: (FromJSON a, ToJSON b) => String -> b -> IO (Either String a)
-patcher url body = do
-  manager <- newManager tlsManagerSettings
+patcher :: (FromJSON a, ToJSON b) => Manager -> String -> b -> IO (Either String a)
+patcher manager url body = do
   initialRequest <- parseRequest url
   let request =
         initialRequest
@@ -84,9 +79,8 @@ patcher url body = do
   response <- httpLbs request manager
   pure $ eitherDecode $ responseBody response
 
-deleter :: (FromJSON a, ToJSON b) => String -> b -> IO (Either String a)
-deleter url body = do
-  manager <- newManager tlsManagerSettings
+deleter :: (FromJSON a, ToJSON b) => Manager -> String -> b -> IO (Either String a)
+deleter manager url body = do
   initialRequest <- parseRequest url
   let request =
         initialRequest
@@ -97,17 +91,17 @@ deleter url body = do
   response <- httpLbs request manager
   pure $ eitherDecode $ responseBody response
 
-fetchAll :: (FromJSON a) => Resource -> IO (Either String [a])
-fetchAll resource = fetcher $ buildUrl resource Nothing
+fetchAll :: (FromJSON a) => Manager -> String -> Resource -> IO (Either String [a])
+fetchAll manager baseUrl resource = fetcher manager $ buildUrl baseUrl resource Nothing
 
-fetchById :: (FromJSON a) => Resource -> Int -> IO (Either String a)
-fetchById resource rid = fetcher $ buildUrl resource (Just rid)
+fetchById :: (FromJSON a) => Manager -> String -> Resource -> Int -> IO (Either String a)
+fetchById manager baseUrl resource rid = fetcher manager $ buildUrl baseUrl resource (Just rid)
 
-create :: (FromJSON a, ToJSON b) => Resource -> b -> IO (Either String a)
-create resource = poster (buildUrl resource Nothing)
+create :: (FromJSON a, ToJSON b) => Manager -> String -> Resource -> b -> IO (Either String a)
+create manager baseUrl resource = poster manager (buildUrl baseUrl resource Nothing)
 
-patch :: (FromJSON a, ToJSON b) => Patchable -> Int -> b -> IO (Either String a)
-patch resource rid = patcher (buildUrl resource (Just rid))
+patch :: (FromJSON a, ToJSON b) => Manager -> String -> Patchable -> Int -> b -> IO (Either String a)
+patch manager baseUrl resource rid = patcher manager (buildUrl baseUrl resource (Just rid))
 
-delete :: (FromJSON a, ToJSON b) => Deleteable -> Int -> b -> IO (Either String a)
-delete resource rid = deleter (buildUrl resource (Just rid))
+delete :: (FromJSON a, ToJSON b) => Manager -> String -> Deleteable -> Int -> b -> IO (Either String a)
+delete manager baseUrl resource rid = deleter manager (buildUrl baseUrl resource (Just rid))
